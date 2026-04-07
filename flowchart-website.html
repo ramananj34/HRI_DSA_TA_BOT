@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>TA Flowcharts</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font:11px/1.3 monospace;padding:4px;background:#fff}
+.tabs{display:flex;gap:2px;margin-bottom:4px;position:sticky;top:0;background:#fff;z-index:9;padding:2px 0}
+.tab{padding:4px 8px;border:1px solid #999;cursor:pointer;background:#eee;font:11px monospace}
+.tab.active{background:#333;color:#fff}
+.page{display:none}
+.page.active{display:block}
+h2{font-size:12px;margin:6px 0 2px;color:#555}
+h3{font-size:11px;margin:4px 0 2px;color:#777}
+.box{border:1px solid #ccc;padding:3px 5px;margin:1px 0;cursor:pointer;background:#fafafa;white-space:pre-wrap}
+.box:hover{background:#e0f0ff}
+.box.copied{background:#c0ffc0}
+.note{color:#888;font-size:10px;margin:1px 0}
+.goto{color:#07a;font-size:10px}
+</style>
+</head>
+<body>
+<div class="tabs">
+<div class="tab active" onclick="show(0)">Direct P1</div>
+<div class="tab" onclick="show(1)">Socratic P1</div>
+<div class="tab" onclick="show(2)">Direct P2</div>
+<div class="tab" onclick="show(3)">Socratic P2</div>
+</div>
+<div id="pages"></div>
+<script>
+const data=[
+// Direct Problem 1
+[
+["GREETING",
+[["Student: \"Hi\" / \"Hey\" / waves","Hey! How's it going? What are you working on?"],
+["Student: Jumps straight into question","Hey! Let me make sure I understand what you're saying...","→ DIAGNOSE"],
+["Student: Small talk (\"I'm good\" / \"tired\" etc.)","Glad you're here! So what's giving you trouble?"]]
+],
+["DIAGNOSE",
+[["\"I don't know where to start\" / \"I'm lost\"","","→ START-STUCK"],
+["\"I think I should sort it\" / \"I'm taking the biggest ones first\"","","→ GREEDY-WRONG"],
+["\"I think it's DP but I don't know how to set it up\"","","→ DP-SETUP"],
+["\"I have a recurrence but it's not working\"","","→ RECURRENCE-HELP"],
+["\"I don't know what the base case is\"","","→ BASE-CASE"],
+["\"What about negative numbers?\"","","→ NEGATIVES"],
+["\"Can you just tell me the answer?\" / clearly fishing","","→ ANSWER-SEEKING"],
+["Something else / unclear","","→ DEFAULT"]]
+],
+["START-STUCK",
+[["Step 1","This is an optimization problem with a constraint — you're picking elements and no two can be next to each other. That means each element either gets picked or skipped, and your choice affects what's available next."],
+["Step 2","When you have a sequence of decisions where each one depends on previous ones, that's a dynamic programming problem. The key insight here is that at each index, you either take it or skip it."],
+["If they follow","So you want to define a DP array where dp[i] represents the maximum sum you can get from the first i elements.","→ DP-SETUP"],
+["If confused","Think of it this way: you walk through the array left to right. At each spot, you decide take or skip. If you take it, you have to skip the next one. DP lets you track the best outcome of those decisions."]]
+],
+["GREEDY-WRONG",
+[["Step 1","Greedy won't work here. The problem is that picking the locally best element can block you from a better combination later."],
+["Step 2","Here's a quick counterexample: try [2, 7, 9, 3, 1]. A greedy approach that takes the largest first picks 9, then is forced to skip 7 and 3, so it takes 2 and maybe 1 — that's 12. But picking elements 1, 3, and 5 gives you 2 + 9 + 1 = 12 too, and picking 7 + 3 = 10 is worse. Actually, the optimal is 2 + 9 + 1 = 12. The point is greedy doesn't systematically find the best — it gets lucky sometimes and fails other times."],
+["Step 3","The reason greedy fails is that each choice affects future choices. You need a technique that considers all possibilities efficiently. That's dynamic programming.","→ DP-SETUP"],
+["If they push back","Try running your greedy on a few more examples. You'll find one where it gives the wrong answer. The underlying issue is that the constraint — no two adjacent — creates dependencies between choices that greedy ignores."]]
+],
+["DP-SETUP",
+[["Step 1","Define dp[i] as the maximum sum you can achieve using only elements from index 0 through i. At each index i, there are exactly two cases: you skip element i, or you take element i."],
+["Step 2","If you skip element i, then the best answer is just dp[i-1] — whatever was best without this element. If you take element i, then you can't use element i-1, so the best you can combine it with is dp[i-2]. You add arr[i] to that."],
+["If they follow","So the recurrence is dp[i] = max(dp[i-1], dp[i-2] + arr[i]). That's the whole core of it.","→ RECURRENCE-HELP / BASE-CASE"],
+["If confused","Think of it in two buckets. Bucket 1: you pretend element i doesn't exist — best answer is dp[i-1]. Bucket 2: you include element i — then you need the best answer that doesn't use its neighbor, which is dp[i-2] plus arr[i]. You take whichever bucket is bigger."]]
+],
+["RECURRENCE-HELP",
+[["Step 1","The recurrence has two parts. The 'skip' case gives you dp[i-1]. The 'take' case gives you dp[i-2] + arr[i]. You want the max of those two."],
+["Step 2","So it's: dp[i] = max(dp[i-1], dp[i-2] + arr[i]). The first term is 'don't use index i,' the second is 'use index i and combine it with the best answer that ends at or before i-2.'"],
+["If using dp[i-1] + arr[i]","That would mean you're taking element i right after element i-1 — but they're adjacent. You need to jump back to dp[i-2] to avoid that."],
+["If missing the max","You need to pick the better of the two options. Wrap both cases in a max."],
+["Other error","Let me restate it clearly: dp[i] = max(dp[i-1], dp[i-2] + arr[i]). Compare what you have to that."],
+["Once correct","Now you need base cases.","→ BASE-CASE"]]
+],
+["BASE-CASE",
+[["Step 1","Your recurrence references dp[i-1] and dp[i-2], so you need to define dp[0] and dp[1] manually."],
+["Step 2","dp[0] is the best sum from just the first element. You either take it or take nothing, so dp[0] = max(0, arr[0]). The 0 matters because if the element is negative, you're better off picking nothing."],
+["Step 3","dp[1] is the best sum from the first two elements. You can take the first, take the second, or take neither. So dp[1] = max(dp[0], arr[1]). Or equivalently, max(0, arr[0], arr[1])."],
+["If they follow","That's the complete solution. You fill the array left to right and dp[n-1] is your answer.","→ WRAP-UP"],
+["If confused about the 0","The 0 handles the case where all elements are negative. You're not forced to pick anything — an empty subset with sum 0 is valid."]]
+],
+["NEGATIVES",
+[["Step 1","You're allowed to pick an empty subset. That means if everything is negative, the answer is 0 — you pick nothing."],
+["Step 2","This affects your base case. dp[0] should be max(0, arr[0]), not just arr[0]. The 0 represents choosing nothing."],
+["If confused","Imagine arr = [-5, -3, -8]. The best move is to pick no elements. Your sum is 0. So the base case has to allow for that."]]
+],
+["ANSWER-SEEKING",
+[["Step 1","I can point you in the right direction, but I'm not going to give you the final answer. Tell me where you're stuck and I'll help you get past that specific thing."],
+["If persistent","Here's what I can tell you: it's a DP problem, and at each index you either take or skip. Work from there and let me know if you hit a wall."],
+["If very persistent","I think you should talk to the professor about this one. Want me to flag them?"]]
+],
+["DEFAULT",
+[["Step 1","Can you say a bit more about where you're stuck?"],
+["Step 2","Just so I'm on the same page — you're trying to [paraphrase]. Is that right?"],
+["If still unclear","Here's the high-level picture: this is a DP problem where at each index you decide to take or skip the element. The constraint is no two adjacent. Does that help frame it?","→ DIAGNOSE"],
+["If off-script","That's a good question — let me get the professor to help with that one."]]
+],
+["WRAP-UP",
+[["\"I think I get it\" / \"That makes sense\"","Great! Try coding it up and let me know if anything breaks."],
+["\"Thanks\" / \"Thank you\"","No problem! Good luck with it."],
+["\"I'm still confused\"","That's okay, this one is tricky. Want me to go over any part again, or would you rather talk to the professor?"],
+["\"Bye\" / leaves","Good luck! Let me know if you need more help."]]
+]
+],
+// Socratic Problem 1
+[
+["GREETING",
+[["Student: \"Hi\" / \"Hey\" / waves","Hey! How's it going? What are you working on?"],
+["Student: Jumps straight into question","Hey! Let me make sure I understand what you're asking...","→ DIAGNOSE"],
+["Student: Small talk (\"I'm good\" / \"tired\" etc.)","Glad you're here! So what's giving you trouble?"]]
+],
+["DIAGNOSE",
+[["\"I don't know where to start\" / \"I'm lost\"","","→ START-STUCK"],
+["\"I think I should sort it\" / \"I'm taking the biggest ones first\"","","→ GREEDY-WRONG"],
+["\"I think it's DP but I don't know how to set it up\"","","→ DP-SETUP"],
+["\"I have a recurrence but it's not working\"","","→ RECURRENCE-HELP"],
+["\"I don't know what the base case is\"","","→ BASE-CASE"],
+["\"What about negative numbers?\"","","→ NEGATIVES"],
+["\"Can you just tell me the answer?\" / clearly fishing","","→ ANSWER-SEEKING"],
+["Something else / unclear","","→ DEFAULT"]]
+],
+["START-STUCK",
+[["Step 1","Let's think small. If you only had one element in the array, what would you do?"],
+["If they say \"take it\"","Okay, what if there were two elements?"],
+["If they say \"take it if it's positive\"","Good thinking. Now what about two elements?"],
+["If confused","There's just one number. Would you pick it or skip it?"],
+["Step 2","Now say you have three elements. You pick one — what does that prevent you from picking?"],
+["If they say \"the neighbors\"","Right. So at each element, what decision are you making?"],
+["If confused (step 2)","If you pick the first one, can you also pick the second?"],
+["Step 3","So at every index you have a choice: take it or skip it. Does that remind you of any technique from class?"],
+["If they say \"DP\"","Exactly. So what would your subproblem look like?","→ DP-SETUP"],
+["If they say \"recursion\"","You're close. How could you avoid recomputing the same thing?","→ DP-SETUP"],
+["If they say \"greedy\"","","→ GREEDY-WRONG"],
+["If still stuck","Think about problems where you made a sequence of decisions and each one affected the next."]]
+],
+["GREEDY-WRONG",
+[["Step 1","Interesting idea. Can you walk me through what happens on a specific example? Try [2, 7, 9, 3, 1]."],
+["Step 2","What did greedy give you? Is there a combination that does better?"],
+["If they find the counterexample","So what went wrong with greedy? Why didn't it work?"],
+["If they can't find it","What if you took the first, third, and fifth elements?"],
+["Step 3","When greedy picks the best-looking option right now, what is it not considering?"],
+["If they get it","So you need a way to account for how each choice affects the rest. What technique handles that?","→ DP-SETUP"],
+["If stuck","Each decision you make changes what's available later. Is there a technique that handles sequences of decisions?","→ DP-SETUP"]]
+],
+["DP-SETUP",
+[["Step 1","What does the subproblem need to capture? After looking at the first i elements, what do you need to know?"],
+["If they say \"the best sum so far\"","Good. Does it matter whether you took the i-th element or not?"],
+["If they say \"whether I took the last one\"","Exactly. Why does that matter for the next decision?"],
+["If confused","Think about it this way — when you're at element i, what do you need to know about what already happened?"],
+["Step 2","So if dp[i] is the best sum considering the first i elements, what are your two options at index i?"],
+["If they say \"take it or skip it\"","Right! If you skip it, what's the best you can do? If you take it, what do you need?","→ RECURRENCE-HELP"],
+["If confused (step 2)","You said each element is either taken or skipped. If you skip element i, the answer is the same as what?","→ RECURRENCE-HELP"]]
+],
+["RECURRENCE-HELP",
+[["Step 1","Let's think about the two cases. If you DON'T take element i, then the best answer is... what?"],
+["If they get dp[i-1]","Good. Now if you DO take element i, what's the most recent element you're allowed to have also taken?"],
+["If stuck","If you skip element i, the problem is the same as the first i-1 elements, right?"],
+["Step 2","If you take element i, you can't take element i-1. So the best you can combine it with is... ?"],
+["If they get dp[i-2] + arr[i]","So what's dp[i]?"],
+["If stuck (step 2)","You took i, you can't take i-1, so you jump back to the best answer through element... ?"],
+["Step 3","Now put the two cases together. What's dp[i]?"],
+["If they get it","That's it. Now what are your base cases?","→ BASE-CASE"],
+["If close but wrong","You're almost there. Remember, you want the BEST of the two options."]]
+],
+["BASE-CASE",
+[["Step 1","Your recurrence uses dp[i-1] and dp[i-2]. What's the smallest i where that works?"],
+["Step 2","If you only have one element, what's the best you can do?"],
+["If they say just arr[0]","What if that element is negative? Are you forced to take something?"],
+["If they get max(0, arr[0])","And dp[1]?"],
+["Step 3","What about dp[1] — you're looking at the first two elements, and you can only take one or neither."],
+["If they get it","You've got the full solution. Want to trace through an example to check?","→ WRAP-UP"]]
+],
+["NEGATIVES",
+[["Step 1","If every element in the array is negative, what should you pick?"],
+["If they say \"the least negative\"","Are you required to pick at least one? Re-read the problem."],
+["If they get nothing/0","So your base case needs to account for picking nothing. How does that change dp[0]?"]]
+],
+["ANSWER-SEEKING",
+[["Step 1","I want to help you get there yourself — it'll stick better that way. Let me ask you this instead..."],
+["If persistent","Tell me what you've tried so far and where exactly you got stuck, and I'll ask you something that should help."],
+["If very persistent","I think it might be worth talking to the professor about this one. Want me to flag them?"]]
+],
+["DEFAULT",
+[["Step 1","Can you say a bit more about what's tripping you up?"],
+["Step 2","Let me make sure I understand — you're trying to [paraphrase]. Is that right?"],
+["If still unclear","Let's start from the beginning. When you look at this problem, what's your first instinct for how to solve it?","→ DIAGNOSE"],
+["If off-script","Hmm, that's a good question. Let me get the professor to help with that one."]]
+],
+["WRAP-UP",
+[["\"I think I get it\" / \"That makes sense\"","Awesome! Try coding it up and let me know if you get stuck again."],
+["\"Thanks\" / \"Thank you\"","No problem! Good luck, you've got this."],
+["\"I'm still confused\"","That's okay, this is a tough one. Want to trace through an example together, or would you rather talk to the professor?"],
+["\"Bye\" / leaves","Good luck! Let me know if you need more help."]]
+]
+],
+// Direct Problem 2
+[
+["GREETING",
+[["Student: \"Hi\" / \"Hey\" / waves","Hey! How's it going? What are you working on?"],
+["Student: Jumps straight into question","Hey! Let me make sure I understand what you're saying...","→ DIAGNOSE"],
+["Student: Small talk (\"I'm good\" / \"tired\" etc.)","Glad you're here! So what's giving you trouble?"]]
+],
+["DIAGNOSE",
+[["\"I don't know where to start\" / \"I'm lost\"","","→ START-STUCK"],
+["\"I'm taking the biggest pairs first\" / \"I sorted the pairs\"","","→ GREEDY-WRONG"],
+["\"I think it's DP but I don't know the subproblem\"","","→ DP-SETUP"],
+["\"I have a recurrence but something's off\"","","→ RECURRENCE-HELP"],
+["\"I don't know the base case\"","","→ BASE-CASE"],
+["\"I'm confused about what counts as a pair\"","","→ PAIR-CLARIFY"],
+["\"Can you just tell me the answer?\" / clearly fishing","","→ ANSWER-SEEKING"],
+["Something else / unclear","","→ DEFAULT"]]
+],
+["START-STUCK",
+[["Step 1","This is a DP problem. The reason is that picking a pair of consecutive elements uses both of them up, which affects which other pairs you can pick. That dependency between choices is what makes it DP rather than greedy."],
+["Step 2","The way to think about it: scan the array from left to right. At each position, you have two options — skip this element, or pair it with the element right before it. If you pair them, both are consumed and you continue from two positions back."],
+["If they follow","So the subproblem is: what's the best sum you can get from the first i elements?","→ DP-SETUP"],
+["If confused","Think of it like you're walking along the array. At each step you either step forward one (skip) or grab two and jump forward two (pair). DP tracks the best outcome at each position."]]
+],
+["GREEDY-WRONG",
+[["Step 1","Greedy doesn't work here because picking the best single pair can block you from picking a better combination of pairs."],
+["Step 2","Counterexample: [1, 5, 3, 4, 2]. Greedy picks the pair (5,3) = 8 because it has the highest sum. But that blocks you from using 5 or 3 in any other pair. The better answer is to pair (1,5) and (3,4) = 6 + 7 = 13."],
+["Step 3","The fundamental issue is that pairs overlap — choosing one pair uses up elements that neighboring pairs need. Greedy doesn't account for these dependencies. DP does.","→ DP-SETUP"],
+["If they push back","Run your approach on that example. If it gives 13, great. If not, the greedy is breaking down on the overlap constraint."]]
+],
+["DP-SETUP",
+[["Step 1","Define dp[i] as the maximum pair-sum you can get using elements from index 0 through i-1. You're scanning left to right, and at position i you have two choices."],
+["Step 2","Choice 1: skip — you don't pair anything ending here, so dp[i] = dp[i-1]. Choice 2: pair elements i-1 and i-2 together, which uses both of them, so dp[i] = dp[i-2] + arr[i-1] + arr[i-2]."],
+["If they follow","Take the max of those two cases and that's your recurrence.","→ RECURRENCE-HELP"],
+["If confused about indexing","dp[i] represents having processed i elements. The last two elements in that window are arr[i-1] and arr[i-2]. If you pair them, you add their values and fall back to dp[i-2] for everything before them."]]
+],
+["RECURRENCE-HELP",
+[["Step 1","The recurrence is: dp[i] = max(dp[i-1], dp[i-2] + arr[i-1] + arr[i-2]). The first term is the skip case. The second term is the pair case."],
+["Only adding one element in pair case","A pair is two elements. You need to add both arr[i-1] and arr[i-2] when you take the pair."],
+["Using dp[i-1] in the pair case","If you pair elements i-1 and i-2, element i-1 is used — so you can't include dp[i-1]. You jump to dp[i-2]."],
+["Wrong indices on arr","Make sure your array indices match. If dp[i] covers i elements, the last element is arr[i-1] and the one before it is arr[i-2]."],
+["Missing the max","You want the better of skip vs pair. Wrap both cases in max()."],
+["Once correct","Now you need the base cases.","→ BASE-CASE"]]
+],
+["BASE-CASE",
+[["Step 1","Your recurrence uses dp[i-1] and dp[i-2], so you need dp[0] and dp[1] defined."],
+["Step 2","dp[0] = 0. Zero elements means no pairs, so the sum is 0."],
+["Step 3","dp[1] = 0. One element means you can't form a pair — you need at least two elements for that. So the sum is still 0."],
+["Step 4","From dp[2] onward, use the recurrence. dp[2] = max(dp[1], dp[0] + arr[0] + arr[1]) = max(0, arr[0] + arr[1]). That's just deciding whether to pair the first two elements or not."],
+["If they follow","That's the complete solution. dp[n] is your final answer.","→ WRAP-UP"],
+["If confused","Both base cases are 0 because you need at least two elements to form any pair. Once you have two, you start deciding."]]
+],
+["PAIR-CLARIFY",
+[["Step 1","A pair means two elements that are next to each other in the array — indices i and i+1. You add their values together."],
+["Step 2","The constraint is that each element can be in at most one pair. So if you pair indices 2 and 3, neither of those can appear in any other pair."],
+["Step 3","You're picking a set of non-overlapping consecutive pairs to maximize the total sum. Elements that aren't in any pair are just ignored.","→ DIAGNOSE"]]
+],
+["ANSWER-SEEKING",
+[["Step 1","I can help you work through it, but I'm not going to hand you the answer. Tell me what you've tried and I'll point you in the right direction."],
+["If persistent","Here's a concrete starting point: it's DP, and at each position you either skip or pair with the previous element. Build the recurrence from there."],
+["If very persistent","I think you should talk to the professor about this one. Want me to flag them?"]]
+],
+["DEFAULT",
+[["Step 1","Can you say a bit more about where you're stuck?"],
+["Step 2","Let me make sure I understand — you're trying to [paraphrase]. Is that right?"],
+["If still unclear","Here's the big picture: this is a DP problem. You scan left to right, and at each index you either skip or pair with the previous element. The recurrence tracks the best sum so far.","→ DIAGNOSE"],
+["If off-script","Good question — let me get the professor to help with that one."]]
+],
+["WRAP-UP",
+[["\"I think I get it\" / \"That makes sense\"","Great! Try coding it up and let me know if anything breaks."],
+["\"Thanks\" / \"Thank you\"","No problem! Good luck with it."],
+["\"I'm still confused\"","That's okay, this one is tricky. Want me to go over any specific part again, or would you rather talk to the professor?"],
+["\"Bye\" / leaves","Good luck! Let me know if you need more help."]]
+]
+],
+// Socratic Problem 2
+[
+["GREETING",
+[["Student: \"Hi\" / \"Hey\" / waves","Hey! How's it going? What are you working on?"],
+["Student: Jumps straight into question","Hey! Let me make sure I understand what you're asking...","→ DIAGNOSE"],
+["Student: Small talk (\"I'm good\" / \"tired\" etc.)","Glad you're here! So what's giving you trouble?"]]
+],
+["DIAGNOSE",
+[["\"I don't know where to start\" / \"I'm lost\"","","→ START-STUCK"],
+["\"I'm taking the biggest pairs first\" / \"I sorted the pairs\"","","→ GREEDY-WRONG"],
+["\"I think it's DP but I don't know the subproblem\"","","→ DP-SETUP"],
+["\"I have a recurrence but something's off\"","","→ RECURRENCE-HELP"],
+["\"I don't know the base case\"","","→ BASE-CASE"],
+["\"I'm confused about what counts as a pair\"","","→ PAIR-CLARIFY"],
+["\"Can you just tell me the answer?\" / clearly fishing","","→ ANSWER-SEEKING"],
+["Something else / unclear","","→ DEFAULT"]]
+],
+["START-STUCK",
+[["Step 1","Let's start simple. If you have an array of just two elements, what can you do?"],
+["If they say \"pair them\"","Right, you can pair them or not. What if you had three elements?"],
+["If confused","You can either pair those two together and take their sum, or take nothing. Those are your only options."],
+["Step 2","With three elements, say [a, b, c], what are your options for pairing?"],
+["If they list them","Notice that pairing (a,b) means b is used up, so you can't also pair (b,c). What does that remind you of?"],
+["If stuck","You could pair the first two, or the last two, but not both — because b would be in two pairs. Does that constraint feel familiar?"],
+["Step 3","So choosing one pair can prevent you from choosing another. Each element you process, you're deciding — do I pair it with the one before, or skip? Does that kind of decision-making remind you of anything?"],
+["If they say \"DP\"","Exactly!","→ DP-SETUP"],
+["If they say \"greedy\"","","→ GREEDY-WRONG"],
+["If stuck (step 3)","Think about problems where you're scanning through a sequence and making a choice at each step that affects what you can do next."]]
+],
+["GREEDY-WRONG",
+[["Step 1","Let's test that. Can you try your approach on [1, 5, 3, 4, 2]?"],
+["Step 2","What did greedy give you? Now look at all possible sets of non-overlapping pairs. Is there a better combination?"],
+["If they find it","So what went wrong with greedy?"],
+["If they can't","What if you paired (1,5) and (3,4) instead?"],
+["Step 3","When greedy picks the single best pair, what is it not thinking about?"],
+["If they get it","Right. So you need a method that considers the downstream effects of each choice. What technique does that?","→ DP-SETUP"],
+["If stuck","Each pairing decision affects which other pairs are available. Sound like a DP problem?","→ DP-SETUP"]]
+],
+["DP-SETUP",
+[["Step 1","Let's think about scanning the array from left to right. When you're at element i, what are your options?"],
+["If they say \"pair it with the next one\"","That works too, but it's easier to think about pairing with the PREVIOUS one. Can you see why?"],
+["If they say \"take it or skip it\"","Close — but you're not taking single elements. You're taking pairs. So what does 'take' mean at position i?"],
+["Step 2","If you pair element i with element i-1, those two are both used up. So where does your subproblem continue from?"],
+["If they get i-2","And if you skip element i, the subproblem is...?"],
+["If stuck","Both i and i-1 are consumed by the pair. So the rest of the problem is everything before index...?"],
+["Step 3","So you have two choices: skip (subproblem is first i-1 elements) or pair (subproblem is first i-2 elements plus the pair sum). How would you write that as a recurrence?","→ RECURRENCE-HELP"]]
+],
+["RECURRENCE-HELP",
+[["Step 1","Let's define dp[i] as the max sum using elements 0 through i-1. If you DON'T pair at position i, what's dp[i]?"],
+["If they get dp[i-1]","Good. Now if you DO pair elements i-1 and i-2 together, what's dp[i]?"],
+["If stuck","If you skip, nothing changes from the previous step. So it's the same as the answer for one fewer element."],
+["Step 2","If you pair the last two elements, their sum is arr[i-1] + arr[i-2]. And the rest of the problem is everything before those two. What's that?"],
+["If they get dp[i-2] + arr[i-1] + arr[i-2]","Now put the two cases together."],
+["If stuck (step 2)","Those two elements are used. Everything before i-2 is handled by dp[i-2]. So the total for this case is dp[i-2] plus the pair sum."],
+["Step 3","So dp[i] = max of those two options. Can you write it out?"],
+["If they get it","That's it! Now what are your base cases?","→ BASE-CASE"],
+["If close but wrong","Almost. Check which indices you're summing — the pair is the two elements right before position i."]]
+],
+["BASE-CASE",
+[["Step 1","Your recurrence uses dp[i-1] and dp[i-2]. What's the smallest i where that works?"],
+["Step 2","What's dp[0]? That means you have zero elements. What's the max sum?"],
+["If they get 0","And dp[1]? You have one element — can you form any pair?"],
+["Step 3","With one element, you can't make a pair. So dp[1] is...?"],
+["If they get 0","So dp[0] = 0 and dp[1] = 0, and you start filling from dp[2] onward. Want to trace through an example?","→ WRAP-UP"],
+["If confused","You need two elements to make a pair. With just one, you can't pair anything, so the best sum is 0."]]
+],
+["PAIR-CLARIFY",
+[["Step 1","A pair is two elements that are right next to each other in the array — at indices i and i+1. You're adding their values together."],
+["Step 2","The constraint is that no element appears in more than one pair. So if you pair elements at index 2 and 3, then neither 2 nor 3 can be in another pair."],
+["Step 3","You don't have to pair everything. You can skip elements entirely. You're just trying to pick the set of non-overlapping pairs that gives the biggest total.","→ DIAGNOSE"]]
+],
+["ANSWER-SEEKING",
+[["Step 1","I want to help you figure it out — it'll make more sense that way. Tell me the last thing you tried and where it broke down."],
+["If persistent","I'll give you a push: think about what decision you make at each index as you scan left to right. What are your options?"],
+["If very persistent","I think it might be worth talking to the professor about this one. Want me to flag them?"]]
+],
+["DEFAULT",
+[["Step 1","Can you tell me more about what's confusing you?"],
+["Step 2","Let me make sure I follow — you're trying to [paraphrase]. Is that right?"],
+["If still unclear","Let's start from scratch. What do you think the first step should be when you look at this problem?","→ DIAGNOSE"],
+["If off-script","That's a good question. Let me get the professor to help with that one."]]
+],
+["WRAP-UP",
+[["\"I think I get it\" / \"That makes sense\"","Awesome! Try implementing it and let me know if you get stuck."],
+["\"Thanks\" / \"Thank you\"","No problem! Good luck, you've got this."],
+["\"I'm still confused\"","That's okay, this one takes some getting used to. Want to trace through a small example together, or would you rather talk to the professor?"],
+["\"Bye\" / leaves","Good luck! Let me know if you need more help."]]
+]
+]
+];
+
+const titles=["Direct P1: Non-Adjacent Subset","Socratic P1: Non-Adjacent Subset","Direct P2: Consecutive Pairs","Socratic P2: Consecutive Pairs"];
+const pages=document.getElementById('pages');
+
+data.forEach((sections,pi)=>{
+let d=document.createElement('div');
+d.className='page'+(pi===0?' active':'');
+let html='<b>'+titles[pi]+'</b>';
+sections.forEach(([name,rows])=>{
+html+='<h2>'+name+'</h2>';
+rows.forEach(([label,text,goto])=>{
+if(text){
+let t=tts(text);
+html+='<div class="box" onclick="cp(this)" data-tts="'+escAttr(t)+'"><b>'+esc(label)+':</b> '+esc(text)+'</div>';
+}else{
+html+='<div class="note"><b>'+esc(label)+'</b></div>';
+}
+if(goto)html+='<div class="goto">'+esc(goto)+'</div>';
+});
+});
+d.innerHTML=html;
+pages.appendChild(d);
+});
+
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function escAttr(s){return s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+function tts(s){
+// Convert [1, 5, 3, 4, 2] style arrays to spoken form
+return s.replace(/\[([^\]]+)\]/g, function(m,inner){
+// Check if it looks like a list of values (numbers or short items)
+let items=inner.split(',').map(x=>x.trim());
+if(items.length>1 && items.every(x=>x.length<20)){
+return items.join(', ');
+}
+return m;
+})
+// Convert (5,3) style pairs to spoken form  
+.replace(/\((\d+),(\d+)\)/g, '$1 and $2')
+// Convert dp[i-1] style to spoken
+.replace(/dp\[([^\]]+)\]/g, 'dp of $1')
+.replace(/arr\[([^\]]+)\]/g, 'arr of $1')
+.replace(/nums\[([^\]]+)\]/g, 'nums of $1')
+// max(x, y) to "max of x, y"
+.replace(/max\(([^)]+)\)/g, 'max of $1')
+// Clean up = signs
+.replace(/ = /g, ' equals ')
+// Clean up + for addition in formulas
+.replace(/ \+ /g, ' plus ');
+}
+
+function show(i){
+document.querySelectorAll('.page').forEach((p,j)=>p.classList.toggle('active',j===i));
+document.querySelectorAll('.tab').forEach((t,j)=>t.classList.toggle('active',j===i));
+}
+window.show=show;
+
+function cp(el){
+let txt=el.getAttribute('data-tts');
+navigator.clipboard.writeText(txt);
+el.classList.add('copied');
+setTimeout(()=>el.classList.remove('copied'),400);
+}
+window.cp=cp;
+</script>
+</body>
+</html>
