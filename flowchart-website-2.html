@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>TA Flowcharts</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font:11px/1.4 monospace;padding:4px;background:#fff}
+.tabs{display:flex;gap:2px;margin-bottom:4px;position:sticky;top:0;background:#fff;z-index:9;padding:2px 0;flex-wrap:wrap}
+.tab{padding:4px 8px;border:1px solid #999;cursor:pointer;background:#eee;font:11px monospace}
+.tab.active{background:#333;color:#fff}
+.page{display:none}
+.page.active{display:block}
+.page-title{font-size:12px;font-weight:bold;margin:4px 0 6px;padding:4px 6px;background:#f0f0f0;border-left:3px solid #333}
+h2{font-size:12px;margin:8px 0 2px;color:#333;border-bottom:1px solid #ddd;padding-bottom:1px}
+.box{border:1px solid #ccc;padding:4px 6px;margin:1px 0;cursor:pointer;background:#fafafa;white-space:pre-wrap;line-height:1.4}
+.box:hover{background:#e0f0ff}
+.box.copied{background:#c0ffc0}
+.note{color:#777;font-size:10px;margin:2px 0 1px;padding:2px 4px;background:#f5f5f5;border-left:2px solid #bbb}
+.goto{color:#07a;font-size:10px;margin-left:8px;display:inline-block}
+.section{margin-bottom:6px}
+.escape{border-color:#c00;background:#fff8f8}
+.escape:hover{background:#ffe0e0}
+</style>
+</head>
+<body>
+<div class="tabs">
+  <div class="tab active" onclick="show(0)">Direct P1</div>
+  <div class="tab" onclick="show(1)">Socratic P1</div>
+  <div class="tab" onclick="show(2)">Direct P2</div>
+  <div class="tab" onclick="show(3)">Socratic P2</div>
+</div>
+<div id="pages"></div>
+<script>
+const data=[
+// ── DIRECT P1: Two Sum in Sorted Array ─────────────────────────────────────
+[
+["GREETING",
+ [["Student says hi / waves / small talk","Hello. What are you working on today?"],
+  ["Student jumps straight into the problem","Hello. Let me make sure I understand the problem correctly.","→ DIAGNOSE"]]
+],
+["DIAGNOSE",
+ [["\"I do not know where to start\" / \"I am lost\"","","→ START-STUCK"],
+  ["\"I would use a hashmap\" / \"store the complement\" / \"dictionary\"","","→ HASHMAP-WRONG"],
+  ["\"I would check every pair\" / \"nested loops\" / brute force","","→ BRUTE-FORCE"],
+  ["\"Two pointers\" — knows the method but not the details","","→ TWO-POINTER-SETUP"],
+  ["\"I do not know which pointer to move\"","","→ POINTER-LOGIC"],
+  ["\"When do I stop?\" / confused about termination","","→ TERMINATION"],
+  ["\"Can you just tell me the answer?\" / clearly not engaging","","→ ANSWER-SEEKING"],
+  ["Something else / unclear","","→ DEFAULT"]]
+],
+["START-STUCK",
+ [["Step 1","The problem tells you the array is already sorted. That is a deliberate hint — sorted order lets you predict exactly how the sum changes when you shift a pointer."],
+  ["Step 2","The O(1) space approach is two pointers. Place one at index 0 (left) and one at index n minus 1 (right). Compute the sum of those two elements and compare it to the target.","→ TWO-POINTER-SETUP"],
+  ["If confused","Think about it this way: the smallest possible sum uses the leftmost element, the largest uses the rightmost. Starting from both ends and moving inward covers every useful candidate pair without storing anything extra."]]
+],
+["HASHMAP-WRONG",
+ [["Step 1","A hashmap stores one entry per element, so its memory usage grows with n. That is O(n) space, which violates the constraint."],
+  ["Step 2","O(1) space means the amount of memory you use does not depend on input size at all. Only a fixed number of variables — like two pointer indices — is allowed."],
+  ["Step 3","Because the array is already sorted, you do not need to store anything to find the pair. You can steer toward the target just by moving pointers.","→ TWO-POINTER-SETUP"],
+  ["If they say \"I only store one value at a time\"","Even one stored value per element is O(n) total. O(1) means the same constant amount of memory regardless of how large the array gets."]]
+],
+["BRUTE-FORCE",
+ [["Step 1","Nested loops use only two index variables, so the space is O(1). That satisfies the constraint."],
+  ["Step 2","The time cost is O(n squared). Since the array is sorted, there is an O(n) solution — two pointers let you eliminate large chunks of pairs with each move rather than checking one pair at a time.","→ TWO-POINTER-SETUP"],
+  ["If student is satisfied with brute force","Brute force is technically correct for the space constraint. The intended insight is that sorted order enables a much faster approach using two pointers."]]
+],
+["TWO-POINTER-SETUP",
+ [["Step 1","Initialize: left = 0, right = n minus 1. At each step, compute current_sum = nums[left] + nums[right]."],
+  ["Step 2","Three cases: if current_sum equals target, you found the pair. If current_sum is less than target, increment left. If current_sum is greater than target, decrement right."],
+  ["Step 3","Repeat until left is no longer less than right. If no pair was found, none exists.","→ TERMINATION"],
+  ["If they follow","This runs in O(n) time using only the two pointer variables — O(1) space.","→ WRAP-UP"],
+  ["If they ask why it works","Because the array is sorted, every move is meaningful: moving left right strictly increases the sum, moving right left strictly decreases it. You can navigate directly toward the target.","→ POINTER-LOGIC"]]
+],
+["POINTER-LOGIC",
+ [["Step 1","sum < target: you need a larger sum. Incrementing left replaces the smaller element with the next larger one (array is ascending), so the sum increases."],
+  ["Step 2","sum > target: you need a smaller sum. Decrementing right replaces the larger element with the next smaller one, so the sum decreases."],
+  ["Step 3","At every step, one pointer moves inward. Each old position is permanently eliminated because it was proven to not contribute to a valid pair.","→ TERMINATION"],
+  ["If they move the wrong pointer","Left holds the smaller value, right holds the larger. To increase the sum, swap out the smaller element — move left. To decrease, swap out the larger — move right."],
+  ["If they ask why no valid pair is skipped","When left advances past index i, every pair (i, j) for all j produced a sum too small. Those pairs are ruled out — not skipped by accident."]]
+],
+["TERMINATION",
+ [["Step 1","The loop condition is left < right. When the pointers meet or cross, all candidate pairs have been considered."],
+  ["Step 2","Left can only increase; right can only decrease. They always converge. The loop terminates in at most n steps."],
+  ["If no-solution case","If the problem guarantees a solution exists, the pair will always be found before the pointers cross. If not guaranteed, return a sentinel value such as null or an empty array to signal no result."]]
+],
+["ANSWER-SEEKING",
+ [["Step 1","I am not going to give you the answer directly. Tell me where you are stuck and I will help from that point."],
+  ["If persistent","Here is a starting direction: the array is sorted, so two pointers — one at each end — can find the pair in O(n) time with O(1) space. Build from there."],
+  ["If very persistent — ESCAPE","I think you should speak with the professor about this one. Would you like me to get them?"]]
+],
+["DEFAULT",
+ [["Step 1","Can you say more about what is confusing you?"],
+  ["Step 2","Let me make sure I understand — you are trying to [paraphrase]. Is that right?"],
+  ["If still unclear","Here is the overview: use two pointers, one at each end of the sorted array. Move them inward based on whether the current sum is too small or too large.","→ DIAGNOSE"],
+  ["If completely off-topic — ESCAPE","That is outside what I can help with here. Let me get the professor."]]
+],
+["WRAP-UP",
+ [["\"I think I get it\" / \"That makes sense\"","Good. Try implementing it and let me know if you run into any issues."],
+  ["\"Thanks\" / \"Thank you\"","You are welcome. Good luck."],
+  ["\"I am still confused\"","That is okay. Would you like to go over a specific part again, or would you prefer to speak with the professor?"],
+  ["\"Bye\" / student leaves","Good luck."]]
+]
+],
+// ── SOCRATIC P1: Two Sum in Sorted Array ───────────────────────────────────
+[
+["GREETING",
+ [["Student says hi / waves / small talk","Hello. What are you working on today?"],
+  ["Student jumps straight into the problem","Hello. Let me make sure I understand what you are asking.","→ DIAGNOSE"]]
+],
+["DIAGNOSE",
+ [["\"I do not know where to start\" / \"I am lost\"","","→ START-STUCK"],
+  ["\"I would use a hashmap\" / \"store the complement\" / \"dictionary\"","","→ HASHMAP-WRONG"],
+  ["\"I would check every pair\" / \"nested loops\" / brute force","","→ BRUTE-FORCE"],
+  ["\"Two pointers\" — knows the method but not the details","","→ TWO-POINTER-SETUP"],
+  ["\"I do not know which pointer to move\"","","→ POINTER-LOGIC"],
+  ["\"When do I stop?\" / confused about termination","","→ TERMINATION"],
+  ["\"Can you just tell me the answer?\" / clearly not engaging","","→ ANSWER-SEEKING"],
+  ["Something else / unclear","","→ DEFAULT"]]
+],
+["START-STUCK",
+ [["Step 1","What is unusual about this array compared to a typical unsorted input?"],
+  ["If they say \"it is sorted\"","Right. If you picked the first and last elements of the example — 1 and 9 — what is their sum?"],
+  ["If they say \"too small\"","Good. So which element would you swap out to get a larger sum, and where in the array would you find the next option?"],
+  ["If they say \"too large\"","Good. So which element would you swap out to get a smaller sum, and where is the next option?"],
+  ["If confused","Look at the example: 1, 3, 5, 7, 9 with target 10. Start at both ends. What is nums[0] plus nums[4]?"],
+  ["Step 2","So you are moving pointers inward from both ends based on whether the sum is too small or too large. Does that approach have a name?","→ TWO-POINTER-SETUP"],
+  ["If they say two pointers","Exactly.","→ TWO-POINTER-SETUP"],
+  ["If still stuck","Think about it: you start with the smallest and largest possible sum. Each move gives you the next best option in one direction. Does that remind you of a technique from class?"]]
+],
+["HASHMAP-WRONG",
+ [["Step 1","Walk me through how much memory a hashmap would use here."],
+  ["If they say O(n)","Right. Is that within the O(1) constraint?"],
+  ["If they do not see it","If you store one entry per element and the array has n elements, how does memory scale as n grows?"],
+  ["Step 2","So a hashmap is out. What property of this array might let you avoid storing anything at all?"],
+  ["If they say sorted","Exactly. How could you exploit the sorted order to find the pair?","→ TWO-POINTER-SETUP"],
+  ["If stuck","In a sorted array, moving one step right always gives a larger value. What could you do with that property?"]]
+],
+["BRUTE-FORCE",
+ [["Step 1","What is the time complexity of checking every pair?"],
+  ["If they say O(n squared)","Right. And the space complexity?"],
+  ["Step 2","So brute force satisfies the space constraint. Can you do better on time? What does sorted order tell you about which pairs you actually need to check?"],
+  ["If they recognize two pointers","Walk me through how two pointers would work here.","→ TWO-POINTER-SETUP"],
+  ["If not","If the sum of the two endpoints is too small, do you need to check that left endpoint against every other element, or can you rule some out immediately?"]]
+],
+["TWO-POINTER-SETUP",
+ [["Step 1","Where would you place your two pointers initially, and why?"],
+  ["If they say start and end","Why does starting from both ends make sense for this problem?"],
+  ["If confused","What pair gives you the absolute smallest possible sum? The absolute largest?"],
+  ["Step 2","Say nums[left] + nums[right] is less than target. Which pointer should you move, and in which direction?"],
+  ["If they get left right","And if the sum is greater than target?","→ POINTER-LOGIC"],
+  ["If confused","If the sum is too small, you need a bigger number. Left points to the smaller element. Moving it right gives you what?"]]
+],
+["POINTER-LOGIC",
+ [["Step 1","Why does incrementing left increase the sum?"],
+  ["If they say because the array is sorted","Right. And why does decrementing right always decrease the sum?"],
+  ["Step 2","When you move left past position i, you are ruling out every pair that used that element. Why is it safe to do that?"],
+  ["If confused","If nums[left] + nums[right] was too small, and right is already at the maximum — could any pair with that old left value ever work?"],
+  ["Step 3","How do you know when to stop moving the pointers?","→ TERMINATION"]]
+],
+["TERMINATION",
+ [["Step 1","What is the condition that tells you there are no more pairs to check?"],
+  ["If they say pointers meet / cross","Right. Why does crossing mean all pairs have been examined?"],
+  ["If confused","Left can only increase, right can only decrease. What happens to the number of remaining candidates each time a pointer moves?"]]
+],
+["ANSWER-SEEKING",
+ [["Step 1","I want to help you figure this out yourself. Tell me the last thing you tried and where it broke down."],
+  ["If persistent","I will give you a direction: think about what the sorted order tells you. If your current sum is too small, which element should you replace and where do you find the next candidate?"],
+  ["If very persistent — ESCAPE","I think it would be worth speaking with the professor about this one. Would you like me to get them?"]]
+],
+["DEFAULT",
+ [["Step 1","Can you say more about what is tripping you up?"],
+  ["Step 2","Let me make sure I follow — you are trying to [paraphrase]. Is that right?"],
+  ["If still unclear","Let us start fresh. What does sorted order tell you about how sums change as you move through the array?","→ DIAGNOSE"],
+  ["If completely off-topic — ESCAPE","That is a good question, but it is outside what I can help with. Let me get the professor."]]
+],
+["WRAP-UP",
+ [["\"I think I get it\" / \"That makes sense\"","Good. Try implementing it and come back if you get stuck."],
+  ["\"Thanks\" / \"Thank you\"","You are welcome. Good luck."],
+  ["\"I am still confused\"","That is okay. Would you like to trace through the example together, or would you prefer to speak with the professor?"],
+  ["\"Bye\" / student leaves","Good luck."]]
+]
+],
+// ── DIRECT P2: Missing Number ───────────────────────────────────────────────
+[
+["GREETING",
+ [["Student says hi / waves / small talk","Hello. What are you working on today?"],
+  ["Student jumps straight into the problem","Hello. Let me make sure I understand the problem.","→ DIAGNOSE"]]
+],
+["DIAGNOSE",
+ [["\"I do not know where to start\" / \"I am lost\"","","→ START-STUCK"],
+  ["\"I would use a set\" / \"boolean array\" / \"mark visited\" / \"frequency array\"","","→ HASHSET-WRONG"],
+  ["\"I would sort it and scan\"","","→ SORT-APPROACH"],
+  ["\"I would use the expected sum\" / \"subtract actual from expected\"","","→ SUM-SETUP"],
+  ["\"I know it is a sum but I do not remember the formula\"","","→ FORMULA-HELP"],
+  ["\"I would use XOR\"","","→ XOR-VALID"],
+  ["\"Can you just tell me the answer?\" / clearly not engaging","","→ ANSWER-SEEKING"],
+  ["Something else / unclear","","→ DEFAULT"]]
+],
+["START-STUCK",
+ [["Step 1","You know the array should contain every integer from 1 to n — exactly one is missing. That means you know in advance exactly what the full set looks like."],
+  ["Step 2","If you compute what the sum should be if nothing were missing, and then compute the actual sum of the array, the difference is the missing number."],
+  ["Step 3","The expected sum of 1 through n is n times (n plus 1) divided by 2. Compute that in one line — O(1). Sum the array in one pass — O(n). Subtract. Done. O(n) time, O(1) space.","→ SUM-SETUP"],
+  ["If confused","Think of it this way: if nothing were missing, the two sums would be equal. Since exactly one number is absent, the actual sum is smaller by precisely that number."]]
+],
+["HASHSET-WRONG",
+ [["Step 1","A set or boolean array that tracks which numbers you have seen uses memory proportional to n. That is O(n) space, which violates the constraint."],
+  ["Step 2","O(1) space means the memory you use does not grow with n at all. You are limited to a fixed number of scalar variables — things like a running total or two counters."],
+  ["Step 3","The insight here is that you already know what numbers should be present — they are 1 through n. You can compute the expected total without storing anything.","→ SUM-SETUP"],
+  ["If they say \"I only need n bits\"","A bit array of size n is still O(n) space. Even a single bit per element is O(n) total."]]
+],
+["SORT-APPROACH",
+ [["Step 1","Sorting in place uses O(1) extra space, so it does satisfy the space constraint. But it takes O(n log n) time."],
+  ["Step 2","There is a simpler O(n) time and O(1) space solution. Because you know the numbers are exactly 1 through n, their sum is determined by a closed-form formula — no sorting needed.","→ SUM-SETUP"],
+  ["If they want to proceed with sort","Sorting is acceptable if the problem allows O(n log n). Be aware the intended O(n) approach uses a mathematical identity instead."]]
+],
+["SUM-SETUP",
+ [["Step 1","The sum of all integers from 1 to n is n times (n plus 1) divided by 2. This formula is O(1) to compute — just arithmetic."],
+  ["Step 2","Compute the actual sum of the array elements in a single loop — O(n) time, O(1) space."],
+  ["Step 3","The missing number equals expected_sum minus actual_sum. That is the complete solution."],
+  ["If they follow","O(n) time, O(1) space. No extra data structures.","→ WRAP-UP"],
+  ["If they ask why the formula works","Pair the integers: 1 with n (sum n+1), 2 with n minus 1 (sum n+1), and so on. There are n divided by 2 such pairs, giving n times (n plus 1) divided by 2 total.","→ FORMULA-HELP"],
+  ["If they forget the formula","That is covered in the next section.","→ FORMULA-HELP"]]
+],
+["FORMULA-HELP",
+ [["Step 1","The sum of 1 through n is n times (n plus 1) divided by 2. This is called Gauss's formula."],
+  ["Step 2","To derive it: write out 1, 2, ..., n forward and n, n minus 1, ..., 1 backward. Each column sums to n plus 1. There are n columns, but you counted each number twice — so the total is n times (n plus 1) divided by 2."],
+  ["Step 3","In code: expected = n * (n + 1) / 2. One line, no loop.","→ SUM-SETUP"],
+  ["If they ask about overflow","Good observation. If n is very large, n times (n plus 1) can overflow a 32-bit integer. Use a long or 64-bit type."]]
+],
+["XOR-VALID",
+ [["Step 1","XOR is a valid O(1) space solution. XOR all integers from 1 to n, then XOR every element in the array. The result is the missing number."],
+  ["Step 2","This works because XOR of a number with itself is 0, and XOR with 0 is the number itself. Every present number appears twice — once in the 1..n sequence and once in the array — so it cancels. The missing number appears only once and remains."],
+  ["Step 3","Both sum and XOR are correct O(n) time, O(1) space solutions. The sum approach may be easier to explain and verify.","→ WRAP-UP"]]
+],
+["ANSWER-SEEKING",
+ [["Step 1","I am not going to give you the answer directly. Tell me where you are stuck and I will help from that point."],
+  ["If persistent","Here is a direction: you know the numbers should be 1 through n. Their expected sum has a formula. Compare that to the actual sum of the array."],
+  ["If very persistent — ESCAPE","I think you should speak with the professor about this one. Would you like me to get them?"]]
+],
+["DEFAULT",
+ [["Step 1","Can you say more about what is confusing you?"],
+  ["Step 2","Let me make sure I understand — you are trying to [paraphrase]. Is that right?"],
+  ["If still unclear","Here is the overview: compute the expected sum of 1 through n using n times (n plus 1) divided by 2, subtract the actual array sum, and the difference is the missing number. O(n) time, O(1) space.","→ DIAGNOSE"],
+  ["If completely off-topic — ESCAPE","That is outside what I can help with here. Let me get the professor."]]
+],
+["WRAP-UP",
+ [["\"I think I get it\" / \"That makes sense\"","Good. Try implementing it and let me know if you run into any issues."],
+  ["\"Thanks\" / \"Thank you\"","You are welcome. Good luck."],
+  ["\"I am still confused\"","That is okay. Would you like to go over a specific step again, or would you prefer to speak with the professor?"],
+  ["\"Bye\" / student leaves","Good luck."]]
+]
+],
+// ── SOCRATIC P2: Missing Number ─────────────────────────────────────────────
+[
+["GREETING",
+ [["Student says hi / waves / small talk","Hello. What are you working on today?"],
+  ["Student jumps straight into the problem","Hello. Let me make sure I understand what you are asking.","→ DIAGNOSE"]]
+],
+["DIAGNOSE",
+ [["\"I do not know where to start\" / \"I am lost\"","","→ START-STUCK"],
+  ["\"I would use a set\" / \"boolean array\" / \"mark visited\" / \"frequency array\"","","→ HASHSET-WRONG"],
+  ["\"I would sort it and scan\"","","→ SORT-APPROACH"],
+  ["\"I would use the expected sum\" / \"subtract actual from expected\"","","→ SUM-SETUP"],
+  ["\"I know it is a sum but I do not remember the formula\"","","→ FORMULA-HELP"],
+  ["\"I would use XOR\"","","→ XOR-VALID"],
+  ["\"Can you just tell me the answer?\" / clearly not engaging","","→ ANSWER-SEEKING"],
+  ["Something else / unclear","","→ DEFAULT"]]
+],
+["START-STUCK",
+ [["Step 1","If the array had all numbers from 1 to n with nothing missing, what would their sum be?"],
+  ["If they guess","Is there a closed-form formula for that sum?"],
+  ["If they know n*(n+1)/2","Right. Now, one number is missing from the array. What does that tell you about the actual sum of the array compared to that expected value?"],
+  ["If confused","The actual sum will be smaller than expected. By how much?"],
+  ["Step 2","So if you subtract the actual array sum from the expected sum, what do you get?"],
+  ["If they get it","Exactly. And how would you compute both of those?","→ SUM-SETUP"],
+  ["If stuck","Think about what the gap between expected and actual represents. What is in the expected sum that is not in the actual sum?"]]
+],
+["HASHSET-WRONG",
+ [["Step 1","How much memory does a set of n elements use?"],
+  ["If they say O(n)","Is that within the O(1) space constraint?"],
+  ["If they do not see it","If you insert one element per array value, how does memory scale as n grows?"],
+  ["Step 2","So storing elements is out. What do you already know about the numbers in the array — without storing them — that might help?"],
+  ["If they say \"they are 1 to n\"","Right. And what can you compute about those numbers without storing them?","→ SUM-SETUP"],
+  ["If stuck","You know exactly what values should be there. Can you compute a property of the full set — like its total — using just a formula?"]]
+],
+["SORT-APPROACH",
+ [["Step 1","What is the time complexity of sorting, and does it satisfy the space constraint?"],
+  ["Step 2","Sorting gives you a correct solution, but is there a way to avoid O(n log n) entirely? What do you know about the numbers in the array that gives you information without sorting?"],
+  ["If they think about the sum","Exactly. What would the sum of all numbers 1 through n be?","→ SUM-SETUP"],
+  ["If stuck","You know the numbers are 1 through n. Their total is determined by n alone. How does that help?"]]
+],
+["SUM-SETUP",
+ [["Step 1","What is the formula for the sum of all integers from 1 to n?"],
+  ["If they know it","Good. Now walk me through how you would find the missing number using that."],
+  ["If they do not know it","Let me ask a different way: what is 1 plus n?"],
+  ["If they say n+1","What is 2 plus (n minus 1)?"],
+  ["If they say n+1 again","Notice a pattern? How many such pairs are there? Can you figure out the total?","→ FORMULA-HELP"],
+  ["Step 2","So you have the expected sum and you can compute the actual sum of the array in one pass. What do you do with those two values?"],
+  ["If they get it","Right. What is the time and space complexity of this approach?","→ WRAP-UP"]]
+],
+["FORMULA-HELP",
+ [["Step 1","Write the sequence 1, 2, 3, ..., n forward. Now write it backward underneath: n, n-1, ..., 1. What does each column add up to?"],
+  ["If they say n+1","How many columns are there?"],
+  ["If they say n","So the total of both rows is n times (n plus 1). But you counted each number twice. So the sum of one row is...?"],
+  ["If they get n*(n+1)/2","Right. Now how does this help you find the missing number?","→ SUM-SETUP"],
+  ["If they ask about overflow","Good question. For large n, what type would you use to avoid overflow?"]]
+],
+["XOR-VALID",
+ [["Step 1","Walk me through why XOR of a number with itself is 0."],
+  ["Step 2","If you XOR every number from 1 to n with every element of the array, what happens to the numbers that are present?"],
+  ["If they say they cancel","Right. What is left over?"],
+  ["If they get the missing number","Correct. And what is the time and space complexity of this?","→ WRAP-UP"],
+  ["If confused","Every present number appears once in the 1..n sequence and once in the array. XOR them together. What is n XOR n?"]]
+],
+["ANSWER-SEEKING",
+ [["Step 1","I want to help you figure this out. Tell me the last thing you tried and where it broke down."],
+  ["If persistent","I will give you a direction: you know exactly what numbers should be in the array. Can you compute a property of the full set — using just n — without storing anything?"],
+  ["If very persistent — ESCAPE","I think it would be worth speaking with the professor about this one. Would you like me to get them?"]]
+],
+["DEFAULT",
+ [["Step 1","Can you tell me more about what is confusing you?"],
+  ["Step 2","Let me make sure I follow — you are trying to [paraphrase]. Is that right?"],
+  ["If still unclear","Let us start from the beginning. If the array had no missing number, what would its sum be?","→ DIAGNOSE"],
+  ["If completely off-topic — ESCAPE","That is a good question, but it is outside what I can help with. Let me get the professor."]]
+],
+["WRAP-UP",
+ [["\"I think I get it\" / \"That makes sense\"","Good. Try implementing it and come back if you get stuck."],
+  ["\"Thanks\" / \"Thank you\"","You are welcome. Good luck."],
+  ["\"I am still confused\"","That is okay. Would you like to trace through the example together, or would you prefer to speak with the professor?"],
+  ["\"Bye\" / student leaves","Good luck."]]
+]
+]
+];
+
+const titles=[
+  "Direct P1: Two Sum — Sorted Array, O(1) Space",
+  "Socratic P1: Two Sum — Sorted Array, O(1) Space",
+  "Direct P2: Missing Number — O(1) Space",
+  "Socratic P2: Missing Number — O(1) Space"
+];
+
+const pages=document.getElementById('pages');
+
+data.forEach((sections,pi)=>{
+  let d=document.createElement('div');
+  d.className='page'+(pi===0?' active':'');
+  let html='<div class="page-title">'+titles[pi]+'</div>';
+  sections.forEach(([name,rows])=>{
+    html+='<div class="section"><h2>'+esc(name)+'</h2>';
+    rows.forEach(([label,text,goto])=>{
+      const isEscape=label.includes('ESCAPE');
+      if(text){
+        let t=tts(text);
+        html+='<div class="box'+(isEscape?' escape':'')+'" onclick="cp(this)" data-tts="'+escAttr(t)+'"><b>'+esc(label)+':</b> '+esc(text)+'</div>';
+      } else {
+        html+='<div class="note"><b>'+esc(label)+'</b></div>';
+      }
+      if(goto) html+='<span class="goto">'+esc(goto)+'</span>';
+    });
+    html+='</div>';
+  });
+  d.innerHTML=html;
+  pages.appendChild(d);
+});
+
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function escAttr(s){return(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+
+function tts(s){
+  return s
+    .replace(/\[([^\]]+)\]/g,function(m,inner){
+      let items=inner.split(',').map(x=>x.trim());
+      if(items.length>1&&items.every(x=>x.length<20)) return items.join(', ');
+      return m;
+    })
+    .replace(/\((\d+),(\d+)\)/g,'$1 and $2')
+    .replace(/dp\[([^\]]+)\]/g,'dp of $1')
+    .replace(/arr\[([^\]]+)\]/g,'arr of $1')
+    .replace(/nums\[([^\]]+)\]/g,'nums of $1')
+    .replace(/max\(([^)]+)\)/g,'max of $1')
+    .replace(/ = /g,' equals ')
+    .replace(/ \+ /g,' plus ')
+    .replace(/ \- /g,' minus ')
+    .replace(/n\*\(n\+1\)\/2/g,'n times n plus 1 divided by 2')
+    .replace(/n \* \(n \+ 1\) \/ 2/g,'n times n plus 1 divided by 2')
+    .replace(/O\(1\)/g,'O of 1')
+    .replace(/O\(n\)/g,'O of n')
+    .replace(/O\(n\^2\)/g,'O of n squared')
+    .replace(/O\(n squared\)/g,'O of n squared');
+}
+
+function show(i){
+  document.querySelectorAll('.page').forEach((p,j)=>p.classList.toggle('active',j===i));
+  document.querySelectorAll('.tab').forEach((t,j)=>t.classList.toggle('active',j===i));
+}
+window.show=show;
+
+function cp(el){
+  let txt=el.getAttribute('data-tts');
+  navigator.clipboard.writeText(txt);
+  el.classList.add('copied');
+  setTimeout(()=>el.classList.remove('copied'),400);
+}
+window.cp=cp;
+</script>
+</body>
+</html>
